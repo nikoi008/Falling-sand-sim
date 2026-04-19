@@ -13,12 +13,24 @@ typedef enum { AIR = 0, SAND, WATER, ROCK } blockType;
 typedef struct {
     blockType type;
     bool updated;
+    unsigned char colorVariation;
 } block;
 
 static block grid[GRID_H][GRID_W];
 
 bool inBounds(int x, int y) {
     return x >= 0 && x < GRID_W && y >= 0 && y < GRID_H;
+}
+
+
+Color getBlockColor(block bloc) {
+    float variation = (float)bloc.colorVariation / 255.0f; 
+    switch (bloc.type) {
+        case SAND:  return (Color){ (unsigned char)(230 + (variation * 25)), (unsigned char)(190 + (variation * 40)), (unsigned char)(100 + (variation * 50)), 255 };
+        case WATER: return (Color){ (unsigned char)(30 + (variation * 20)), (unsigned char)(100 + (variation * 50)), (unsigned char)(200 + (variation * 55)), 255 };
+        case ROCK:  return (Color){ (unsigned char)(80 + (variation * 40)), (unsigned char)(80 + (variation * 40)), (unsigned char)(85 + (variation * 40)), 255 };
+        default:    return BLACK;
+    }
 }
 
 void moveBlock(int x1, int y1, int x2, int y2) {
@@ -100,17 +112,21 @@ int main(void) {
                         int spawnX = gridX + offsetX;
                         int spawnY = gridY + offsetY;
                         if (inBounds(spawnX, spawnY)) {
-                            if (selected == AIR) grid[spawnY][spawnX].type = AIR;
-                            else if (grid[spawnY][spawnX].type == AIR) grid[spawnY][spawnX].type = selected;
+                            if (selected == AIR) {
+                                grid[spawnY][spawnX].type = AIR;
+                            } else if (grid[spawnY][spawnX].type == AIR) {
+                                grid[spawnY][spawnX].type = selected;
+                                // Assign a random color variation when placed
+                                grid[spawnY][spawnX].colorVariation = (unsigned char)(rand() % 256);
+                            }
                         }
                     }
                 }
             }
         }
 
-
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && mousePos.y >= (GRID_H * PIXEL_SCALE)) {
-            float sectionWidth = (float)GetScreenWidth() / 4.0f;
+            float sectionWidth = (float)GetScreenWidth() / (float)TOTAL_BLOCKS;
             selected = (blockType)(mousePos.x / sectionWidth);
         }
 
@@ -119,17 +135,14 @@ int main(void) {
         BeginDrawing();
         ClearBackground(BLACK);
 
-
         for (int y = 0; y < GRID_H; y++) {
             for (int x = 0; x < GRID_W; x++) {
-                blockType type = grid[y][x].type;
-                if (type == SAND) DrawRectangle(x * PIXEL_SCALE, y * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE, GOLD);
-                else if (type == WATER) DrawRectangle(x * PIXEL_SCALE, y * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE, BLUE);
-                else if (type == ROCK) DrawRectangle(x * PIXEL_SCALE, y * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE, GRAY);
+                if (grid[y][x].type != AIR) {
+                    DrawRectangle(x * PIXEL_SCALE, y * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE, getBlockColor(grid[y][x]));
+                }
             }
         }
 
-        
         int uiTop = GRID_H * PIXEL_SCALE;
         DrawRectangle(0, uiTop, GetScreenWidth(), UI_HEIGHT, DARKGRAY);
         
@@ -142,7 +155,6 @@ int main(void) {
             
             DrawRectangleRec(button, (selected == i) ? colors[i] : ColorAlpha(colors[i], 0.3f));
             DrawRectangleLinesEx(button, 2, (selected == i) ? WHITE : GRAY);
-            
             
             int fontSize = 20;
             int textWidth = MeasureText(blockNames[i], fontSize);
