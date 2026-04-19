@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Raylib Web Game</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas.emscripten {
+            border: 0 none;
+            background-color: #000;
+            max-width: 100vw;
+            max-height: 100vh;
+            display: block;
+            image-rendering: pixelated; 
+            image-rendering: crisp-edges;
+        }
+
+        #status {
+            position: absolute;
+            color: #555;
+            font-family: arial;
+            font-size: 14px;
+        }
+
+
+        #output, #header, #controls { display: none; }
+    </style>
+</head>
+<body>
+    <div id="status">Downloading...</div>
+    <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+
+    <script type='text/javascript'>
+        var statusElement = document.querySelector('#status');
+        var Module = {
+            print: (function() {
+                return function(text) {
+                    if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+                    console.log(text);
+                };
+            })(),
+            canvas: (function() {
+                var canvas = document.querySelector('#canvas');
+                canvas.addEventListener("webglcontextlost", function(e) { 
+                    alert('WebGL context lost. Please reload the page.'); 
+                    e.preventDefault(); 
+                }, false);
+                return canvas;
+            })(),
+            setStatus: function(text) {
+                if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+                if (text === Module.setStatus.last.text) return;
+                
+                if (!text || text.includes("Running")) {
+                    statusElement.style.display = 'none';
+                } else {
+                    statusElement.style.display = 'block';
+                    statusElement.innerHTML = text;
+                }
+                Module.setStatus.last.text = text;
+            },
+            totalDependencies: 0,
+            monitorRunDependencies: function(left) {
+                this.totalDependencies = Math.max(this.totalDependencies, left);
+                Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+            }
+        };
+        Module.setStatus('Downloading...');
+        window.onerror = function() {
+            Module.setStatus('Exception thrown, see JavaScript console');
+            Module.setStatus = function(text) {
+                if (text) console.error('[post-exception status] ' + text);
+            };
+        };
+    </script>
+    <script async src="index.js"></script>
+</body>
+</html>
