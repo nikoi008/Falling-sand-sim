@@ -6,7 +6,7 @@
 #define GRID_H 200
 #define PIXEL_SCALE 4
 
-typedef enum { AIR = 0, SAND, WATER } blockType;
+typedef enum { AIR = 0, SAND, WATER, ROCK } blockType;
 
 typedef struct {
     blockType type;
@@ -35,7 +35,9 @@ void updateGrid(void) {
     for (int y = GRID_H - 1; y >= 0; y--) {
         for (int x = 0; x < GRID_W; x++) {
             block *bloc = &grid[y][x];
-            if (bloc->type == AIR || c->updated) continue;
+            
+
+            if (bloc->type == AIR || bloc->type == ROCK || bloc->updated) continue;
 
             if (bloc->type == SAND) {
                 if (inBounds(x, y + 1) && (grid[y+1][x].type == AIR || grid[y+1][x].type == WATER)) {
@@ -71,32 +73,71 @@ int main(void) {
     SetTargetFPS(60);
 
     blockType selected = SAND;
+    int brushRadius = 2;
+
     while (!WindowShouldClose()) {
-        if (IsKeyPressed(KEY_ONE)) selected = SAND;
-        if (IsKeyPressed(KEY_TWO)) selected = WATER;
+        if (IsKeyPressed(KEY_ONE)) selected = AIR; //todo work
+        if (IsKeyPressed(KEY_TWO)) selected = SAND;
+        if (IsKeyPressed(KEY_THREE)) selected = WATER;
+        if (IsKeyPressed(KEY_FOUR)) selected = ROCK;
+
+        float wheel = GetMouseWheelMove();
+        if (wheel != 0) {
+            brushRadius += (int)wheel;
+            if (brushRadius < 0) brushRadius = 0; 
+            if (brushRadius > 20) brushRadius = 20; 
+        }
+
+        Vector2 mousePos = GetMousePosition();
+        int gridX = (int)mousePos.x / PIXEL_SCALE;
+        int gridY = (int)mousePos.y / PIXEL_SCALE;
+
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-            Vector2 mousePos = GetMousePosition();
-            int gridX = (int)mousePos.x / PIXEL_SCALE;
-            int gridY = (int)mousePos.y / PIXEL_SCALE;
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    if (inBounds(gridX + dx, gridY + dy) && grid[gridY + dy][gridX + dx].type == AIR) {
-                        grid[gridY + dy][gridX + dx].type = selected;
+            for (int offsetY = -brushRadius; offsetY <= brushRadius; offsetY++) {
+                for (int offsetX = -brushRadius; offsetX <= brushRadius; offsetX++) {
+                    if (offsetX*offsetX + offsetY*offsetY <= brushRadius*brushRadius) {
+                        int spawnX = gridX + offsetX;
+                        int spawnY = gridY + offsetY;
+                        if (inBounds(spawnX, spawnY) && grid[spawnY][spawnX].type == AIR) {
+                            grid[spawnY][spawnX].type = selected;
+                        }
                     }
                 }
             }
         }
+        
         updateGrid();
+
         BeginDrawing();
         ClearBackground(BLACK);
+
         for (int y = 0; y < GRID_H; y++) {
-            for (int x = 0; x < GRID_W; x++) {//optimise??
-                if (grid[y][x].type == SAND) DrawRectangle(x * PIXEL_SCALE, y * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE, GOLD);
-                else if (grid[y][x].type == WATER) DrawRectangle(x * PIXEL_SCALE, y * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE, BLUE);
+            for (int x = 0; x < GRID_W; x++) {
+                blockType type = grid[y][x].type;
+                if (type == SAND) DrawRectangle(x * PIXEL_SCALE, y * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE, GOLD);
+                else if (type == WATER) DrawRectangle(x * PIXEL_SCALE, y * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE, BLUE);
+                else if (type == ROCK) DrawRectangle(x * PIXEL_SCALE, y * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE, GRAY);
             }
         }
+        Color previewCol = YELLOW;
+        switch (selected)
+        {
+        case WATER:
+            previewCol = BLUE;
+            break;
+        case ROCK:
+            previewCol = GRAY;
+        
+        default:
+            break;
+        }
+        
+        DrawCircleLines(mousePos.x, mousePos.y, (brushRadius + 0.5f) * PIXEL_SCALE, WHITE);
+        DrawCircle(mousePos.x, mousePos.y, (brushRadius + 0.5f) * PIXEL_SCALE, Fade(previewCol, 0.3f));
+
         EndDrawing();
     }
+
     CloseWindow();
     return 0;
 }
