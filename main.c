@@ -5,6 +5,8 @@
 #define GRID_W 200
 #define GRID_H 200
 #define PIXEL_SCALE 4
+#define UI_HEIGHT 80
+#define TOTAL_BLOCKS 4
 
 typedef enum { AIR = 0, SAND, WATER, ROCK } blockType;
 
@@ -35,8 +37,6 @@ void updateGrid(void) {
     for (int y = GRID_H - 1; y >= 0; y--) {
         for (int x = 0; x < GRID_W; x++) {
             block *bloc = &grid[y][x];
-            
-
             if (bloc->type == AIR || bloc->type == ROCK || bloc->updated) continue;
 
             if (bloc->type == SAND) {
@@ -69,14 +69,15 @@ void updateGrid(void) {
 }
 
 int main(void) {
-    InitWindow(GRID_W * PIXEL_SCALE, GRID_H * PIXEL_SCALE, "cool sand falling type shit");
+    InitWindow(GRID_W * PIXEL_SCALE, (GRID_H * PIXEL_SCALE) + UI_HEIGHT, "sand falling type shit");
     SetTargetFPS(60);
 
     blockType selected = SAND;
     int brushRadius = 2;
 
     while (!WindowShouldClose()) {
-        if (IsKeyPressed(KEY_ONE)) selected = AIR; //todo work
+
+        if (IsKeyPressed(KEY_ONE)) selected = AIR;
         if (IsKeyPressed(KEY_TWO)) selected = SAND;
         if (IsKeyPressed(KEY_THREE)) selected = WATER;
         if (IsKeyPressed(KEY_FOUR)) selected = ROCK;
@@ -92,24 +93,32 @@ int main(void) {
         int gridX = (int)mousePos.x / PIXEL_SCALE;
         int gridY = (int)mousePos.y / PIXEL_SCALE;
 
-        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && mousePos.y < (GRID_H * PIXEL_SCALE)) {
             for (int offsetY = -brushRadius; offsetY <= brushRadius; offsetY++) {
                 for (int offsetX = -brushRadius; offsetX <= brushRadius; offsetX++) {
                     if (offsetX*offsetX + offsetY*offsetY <= brushRadius*brushRadius) {
                         int spawnX = gridX + offsetX;
                         int spawnY = gridY + offsetY;
-                        if (inBounds(spawnX, spawnY) && grid[spawnY][spawnX].type == AIR) {
-                            grid[spawnY][spawnX].type = selected;
+                        if (inBounds(spawnX, spawnY)) {
+                            if (selected == AIR) grid[spawnY][spawnX].type = AIR;
+                            else if (grid[spawnY][spawnX].type == AIR) grid[spawnY][spawnX].type = selected;
                         }
                     }
                 }
             }
         }
-        
+
+
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && mousePos.y >= (GRID_H * PIXEL_SCALE)) {
+            float sectionWidth = (float)GetScreenWidth() / 4.0f;
+            selected = (blockType)(mousePos.x / sectionWidth);
+        }
+
         updateGrid();
 
         BeginDrawing();
         ClearBackground(BLACK);
+
 
         for (int y = 0; y < GRID_H; y++) {
             for (int x = 0; x < GRID_W; x++) {
@@ -119,21 +128,37 @@ int main(void) {
                 else if (type == ROCK) DrawRectangle(x * PIXEL_SCALE, y * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE, GRAY);
             }
         }
-        Color previewCol = YELLOW;
-        switch (selected)
-        {
-        case WATER:
-            previewCol = BLUE;
-            break;
-        case ROCK:
-            previewCol = GRAY;
+
         
-        default:
-            break;
+        int uiTop = GRID_H * PIXEL_SCALE;
+        DrawRectangle(0, uiTop, GetScreenWidth(), UI_HEIGHT, DARKGRAY);
+        
+        char* blockNames[] = {"ERASE", "SAND", "WATER", "ROCK"};
+        Color colors[] = {LIGHTGRAY, GOLD, BLUE, GRAY};
+        
+        for (int i = 0; i < TOTAL_BLOCKS; i++) {
+            int xPos = i * (GetScreenWidth() / TOTAL_BLOCKS);
+            Rectangle button = { (float)xPos + 5, (float)uiTop + 5, (float)(GetScreenWidth() / TOTAL_BLOCKS) - 10, (float)UI_HEIGHT - 10 };
+            
+            DrawRectangleRec(button, (selected == i) ? colors[i] : ColorAlpha(colors[i], 0.3f));
+            DrawRectangleLinesEx(button, 2, (selected == i) ? WHITE : GRAY);
+            
+            
+            int fontSize = 20;
+            int textWidth = MeasureText(blockNames[i], fontSize);
+            DrawText(blockNames[i], button.x + (button.width/2) - (textWidth/2), button.y + (button.height/2) - 10, fontSize, (selected == i) ? BLACK : WHITE);
         }
-        
-        DrawCircleLines(mousePos.x, mousePos.y, (brushRadius + 0.5f) * PIXEL_SCALE, WHITE);
-        DrawCircle(mousePos.x, mousePos.y, (brushRadius + 0.5f) * PIXEL_SCALE, Fade(previewCol, 0.3f));
+
+        DrawText("Dont forget to use the mouse wheel to make the brush larger or smaller!",0,0,20,WHITE); //todo make this disappear when someone actualtly scrolls
+        if (mousePos.y < (GRID_H * PIXEL_SCALE)) {
+            Color previewCol = YELLOW;
+            if (selected == AIR) previewCol = WHITE;
+            else if (selected == WATER) previewCol = BLUE;
+            else if (selected == ROCK) previewCol = GRAY;
+
+            DrawCircleLines(mousePos.x, mousePos.y, (brushRadius + 0.5f) * PIXEL_SCALE, WHITE);
+            DrawCircle(mousePos.x, mousePos.y, (brushRadius + 0.5f) * PIXEL_SCALE, Fade(previewCol, 0.3f));
+        }
 
         EndDrawing();
     }
