@@ -11,6 +11,7 @@ There are currently 4 different types of blocks
 |Sand | A block that falls downwards and spreads outwards |
 |Water | A block that falls downwards and moves left to right to fill in gaps |
 | Rock | A non solid block that does not have gravity applied to it |
+| Lava | A liquid that moves 3x slower than water, and interacts with water to form rock |
 
 # Building
 This project was written in C using Raylib, and a makefile is provided so all you need to do is type `make`
